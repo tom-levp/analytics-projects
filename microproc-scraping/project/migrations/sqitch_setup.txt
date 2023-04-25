@@ -1,0 +1,5 @@
+sqitch init myproject --engine pg --uri db:pg://user:password@host:port/database
+
+sqitch add mymigration --requires othermigration
+
+sqitch deploy --target db:pg://user:password@host:port/database
