@@ -24,7 +24,7 @@ For instance, at one point I decided to clean data using Pandas. At another, the
 
 Below is a basic flowchart roughly showing my logic, with a twofold data collection (from LDLC and TechPowerUp) and the database construction and feeding:
 
-![chart](/project/assets/flowchart_a.png)
+![chart](project/assets/flowchart_a.png)
 
 # II. Scripts explanation
 
