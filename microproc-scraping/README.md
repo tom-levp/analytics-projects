@@ -1,4 +1,4 @@
-# Microprocessor Scraping
+# MICROPROCESSOR SCRAPING
 
 # I. Project definition
 ## A. Code and visualizations links
