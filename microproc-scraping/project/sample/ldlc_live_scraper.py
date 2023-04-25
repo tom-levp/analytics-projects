@@ -1,4 +1,4 @@
-from playwright.sync_api import Playwright, sync_playwright
+from playwright.sync_api import sync_playwright
 import re, datetime, json, pathlib
 import pandas as pd
 
@@ -6,7 +6,17 @@ today = datetime.date.today()
 
 ROOT_DIR = pathlib.Path(__file__).resolve().parent
 
-SCRAPING_URL = 'https://www.ldlc.com/informatique/pieces-informatique/carte-graphique-interne/c4684/'
+TARGETS = [
+    {
+        'category': 'CPU',
+        'url': 'www.ldlc.com/informatique/pieces-informatique/processeur/c4300/'
+    },
+    {
+        'category': 'GPU',
+        'url': 'www.ldlc.com/informatique/pieces-informatique/carte-graphique-interne/c4684/'
+    }
+]
+
 
 def save_data(retrieved_data, fileName):
     """ Saves data in JSON and CSV formats. """
@@ -24,58 +34,61 @@ def save_data(retrieved_data, fileName):
 
 
 def main():
+    """ Scrapes data of current day from LDLC. """
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
-        page = context.new_page()
-        page.set_viewport_size(viewport_size={"width": 1920, "height": 1080})
+    dataset = []
 
-        page.goto(SCRAPING_URL)
+    for target in TARGETS:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context()
+            page = context.new_page()
+            page.set_viewport_size(viewport_size={"width": 1920, "height": 1080})
 
-        pagination = page.locator('ul.pagination li').all()
-        num_pages = len(pagination) - 1
+            page.goto(target["url"])
 
-        list = []
+            pagination = page.locator('ul.pagination li').all()
+            num_pages = len(pagination) - 1
 
-        for i in range(1, num_pages + 1):
-            if i != 1:
-                page.goto(SCRAPING_URL + f"page{i}")
-            else:
-                pass
+            for i in range(1, num_pages + 1):
+                if i != 1:
+                    page.goto(target["url"] + f"page{i}")
+                else:
+                    pass
 
-            # Get all articles on current page
-            articles = page.locator('li.pdt-item').all() # .query_all()
-            for article in articles:
-                article_data = article.locator('div.dsp-cell-right')
+                # Get all articles on current page
+                articles = page.locator('li.pdt-item').all() # .query_all()
+                for article in articles:
+                    article_data = article.locator('div.dsp-cell-right')
 
-                title = article_data.locator('h3.title-3').text_content().strip()
+                    title = article_data.locator('h3.title-3').text_content().strip()
 
-                article_info = article_data.locator('p.desc').text_content().strip()
-                desc = re.sub(r'\([^()]*\)', '', article_info).strip()
-                try:
-                    model = re.search(r'\(([^()]+)\)', article_info).group(1)
-                except AttributeError:
-                    model = None
+                    article_info = article_data.locator('p.desc').text_content().strip()
+                    desc = re.sub(r'\([^()]*\)', '', article_info).strip()
+                    try:
+                        model = re.search(r'\(([^()]+)\)', article_info).group(1)
+                    except AttributeError:
+                        model = None
 
-                availability = article_data.locator('div[class^="modal-stock-web pointer stock stock"]').text_content().strip()
+                    availability = article_data.locator('div[class^="modal-stock-web pointer stock stock"]').text_content().strip()
 
-                price_info = article_data.locator('div.price div.price').inner_html().strip().split('<sup>')
-                integral = price_info[0][:-1].replace('&nbsp;', '')
-                fractional = re.search(r'\d+', price_info[1]).group(0)
-                price = float(integral + '.' + fractional)
+                    price_info = article_data.locator('div.price div.price').inner_html().strip().split('<sup>')
+                    integral = price_info[0][:-1].replace('&nbsp;', '')
+                    fractional = re.search(r'\d+', price_info[1]).group(0)
+                    price = float(integral + '.' + fractional)
 
-                list.append({
-                    'title': title,
-                    'desc': desc,
-                    'model': model,
-                    'price': price,
-                    'date': today.isoformat()
-                })
+                    dataset.append({
+                        'category': target["category"],
+                        'title': title,
+                        'desc': desc,
+                        'model': model,
+                        'price': price,
+                        'date': today.isoformat()
+                    })
 
-        browser.close()
+            browser.close()
     
-    save_data(list, 'data')
+    save_data(dataset, 'live_ldlc_scraped_data')
 
 
 if __name__ == '__main__':
